@@ -200,7 +200,7 @@ def predict():
     return jsonify({'result': "Successful", 'image_data': encoded_image})
 
 
-    # return jsonify({'result': "Successuiy"})
+    # return jsonify({'result': "Successu"})
   except Exception as e:
     # print(f"Error: {str(e)}")
     return jsonify({"result-error": str(e)})
@@ -208,8 +208,7 @@ def predict():
 
 @app.route('/')
 def hello():
-    # return str(file_extension)
-    return 'Hello, Bye dddwgBwhhyed'
+    return 'Hello, Bye Bye
 
 if __name__ == '__main__':
-    app.run()  # Use a port number that is not in use
+    app.run()  
