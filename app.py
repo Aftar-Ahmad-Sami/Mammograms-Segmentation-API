@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# import model
-# from model import imodel
 
 class BasicBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
@@ -120,16 +118,6 @@ class UNet(nn.Module):
 
 
 
-device = torch.device("cpu")
-# imodel = UNet()
-# imodel.load_state_dict(torch.load('/home/team3s/thesis/model_name.pth', map_location=device))
-# imodel.eval()
-#------------------------------
-# model = torch.jit.load('/home/team3s/thesis/final_model-Sami.pt')
-# model.eval()
-    #-------------
-
-
 #------------
 from flask import Flask
 from flask_cors import CORS
@@ -144,31 +132,9 @@ app = Flask(__name__)
 CORS(app)
 
 
-
 test_transforms = A.Compose([
     A.Resize(224, 224),
 ], is_check_shapes=False)
-
-
-
-# model = torch.jit.load('/home/team3s/thesis/final_model-Sami.pt')
-# model.eval()
-# model = torch.jit.load("/home/team3s/thesis/final_model-Sami.pt")
-
-
-
-
-pth_file_path = '/home/team3s/thesis/final_model-Sami.pt'
-
-
-import mimetypes
-
-
-# Determine the file type
-file_extension, _ = mimetypes.guess_type(pth_file_path)
-
-
-
 
 
 @app.route('/add', methods=['POST'])
@@ -188,7 +154,6 @@ def predict():
   try:
     image_file = request.files['image']
     image_path = '/home/team3s/thesis/temp_image.jpg'
-    # image_path = 'temp_image.jpg'
     image_file.save(image_path)
     image = Image.open(image_path).convert('L')
     image = np.expand_dims(image, axis=-1)
@@ -201,40 +166,41 @@ def predict():
     image = np.transpose(image, (2, 0, 1)).astype(np.float32)
     imageTen = torch.Tensor(image) / 255.0
 
+    device = torch.device("cpu")
+    imodel = UNet()
+    imodel.load_state_dict(torch.load('/home/team3s/thesis/model_name.pth', map_location=device))
+    imodel.eval()
+
+    with torch.no_grad():
+      imageTen = imageTen.to(device)
+      model = imodel.to(device)
+      outputs = model(imageTen.unsqueeze(0))
 
 
-    # with torch.no_grad():
-    # # #     imodel.eval()
-    # # #   outputs = imodel.forward(imageTen.unsqueeze(0))
-    #   imageTen = imageTen.to(device)
-    #   model = model.to(device)
-    #   outputs = model(imageTen.unsqueeze(0))
+      threshold = 0.5
+      binary_mask = (outputs > threshold).float()
+      # binary_mask_np = binary_mask.cpu().numpy().squeeze()
+      binary_mask_np = binary_mask.squeeze()
 
 
-    #   threshold = 0.5
-    #   binary_mask = (outputs > threshold).float()
-    #   # binary_mask_np = binary_mask.cpu().numpy().squeeze()
-    #   binary_mask_np = binary_mask.squeeze()
+      # overlay = np.zeros_like(image.cpu().numpy().squeeze(), dtype=np.uint8)
+      overlay = np.zeros_like(image.squeeze(), dtype=np.uint8)
+      overlay[binary_mask_np > 0.5] = 255
+
+      plt.imshow(image.squeeze(), alpha=1, cmap='gray')
+      plt.imshow(overlay, cmap='gray', alpha=0.5)
+
+      overlay_path = "/home/team3s/thesis/overlay_image.png"
+      plt.axis('off')
+      plt.savefig(overlay_path, bbox_inches='tight', pad_inches=0)
+      plt.close()
+
+    with open('/home/team3s/thesis/overlay_image.png', "rb") as img_file:
+            encoded_image = base64.b64encode(img_file.read()).decode('utf-8')
+    return jsonify({'result': "Successful", 'image_data': encoded_image})
 
 
-    #   # overlay = np.zeros_like(image.cpu().numpy().squeeze(), dtype=np.uint8)
-    #   overlay = np.zeros_like(image.squeeze(), dtype=np.uint8)
-    #   overlay[binary_mask_np > 0.5] = 255
-
-    #   plt.imshow(image.squeeze(), alpha=1, cmap='gray')
-    #   plt.imshow(overlay, cmap='gray', alpha=0.5)
-
-    #   overlay_path = "/home/team3s/thesis/overlay_image.png"
-    #   plt.axis('off')
-    #   plt.savefig(overlay_path, bbox_inches='tight', pad_inches=0)
-    #   plt.close()
-
-    # with open('/home/team3s/thesis/overlay_image.png', "rb") as img_file:
-    #         encoded_image = base64.b64encode(img_file.read()).decode('utf-8')
-    # return jsonify({'result': "Successful", 'image_data': encoded_image})
-
-
-    return jsonify({'result': "Successuiy"})
+    # return jsonify({'result': "Successuiy"})
   except Exception as e:
     # print(f"Error: {str(e)}")
     return jsonify({"result-error": str(e)})
@@ -242,8 +208,8 @@ def predict():
 
 @app.route('/')
 def hello():
-    return str(file_extension)
-    # return 'Hello, Bye dddwgBwhhyed'
+    # return str(file_extension)
+    return 'Hello, Bye dddwgBwhhyed'
 
 if __name__ == '__main__':
     app.run()  # Use a port number that is not in use
